@@ -1,13 +1,12 @@
 package com.example.hemms;
 
 import android.os.StrictMode;
-import android.util.Log;  // Log sınıfını ekleyin
-import android.widget.Toast;
-
+import android.util.Log;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,24 +48,6 @@ public class MSSQLConnection {
         }
 
         return connection;
-    }
-
-    // Veritabanından veri çekmek için örnek bir metod
-    public static void fetchData() {
-        try (Connection connection = getConnection()) {
-            if (connection != null) {
-                String query = "SELECT * FROM Staff";
-                Statement stmt = connection.createStatement();
-                ResultSet rs = stmt.executeQuery(query);
-
-                while (rs.next()) {
-                    // Tablo sütunlarından birini yazdır
-                    Log.d("MSSQLConnection", "Veri: " + rs.getString("staff_first_name"));
-                }
-            }
-        } catch (Exception e) {
-            Log.e("MSSQLConnection", "Veri çekme hatası: ", e);  // Hata mesajını logla
-        }
     }
 
     // Kullanıcı adı ve şifre doğrulama metodu
@@ -128,34 +109,6 @@ public class MSSQLConnection {
         } catch (Exception e) {
             Log.e("MSSQLConnection", "Personel ekleme hatası: ", e);  // Hata mesajını logla
         }
-
-        return isSuccess;  // true veya false döndür
-    }
-    public static boolean updatePassword(String firstName, String lastName, String newPassword) {
-        boolean isSuccess = false;
-
-        try (Connection connection = getConnection()) {
-            if (connection != null) {
-                // SQL sorgusu: Kullanıcı adı ve soyadı ile şifreyi güncelle
-                String query = "UPDATE Staff SET password = ? WHERE staff_first_name = ? AND staff_last_name = ?";
-
-                PreparedStatement preparedStatement = connection.prepareStatement(query);
-
-                // Parametreleri ayarla
-                preparedStatement.setString(1, newPassword);  // Yeni şifre
-                preparedStatement.setString(2, firstName);    // Personel adı
-                preparedStatement.setString(3, lastName);     // Personel soyadı
-
-                // Sorguyu çalıştır
-                int rowsAffected = preparedStatement.executeUpdate();
-
-                // Eğer veri başarıyla güncellendiyse, işlem başarılı oldu
-                isSuccess = rowsAffected > 0;
-            }
-        } catch (Exception e) {
-            Log.e("MSSQLConnection", "Şifre güncelleme hatası: ", e);  // Hata mesajını logla
-        }
-
         return isSuccess;  // true veya false döndür
     }
     public static List<Staff> getStaffList() {
@@ -214,9 +167,133 @@ public class MSSQLConnection {
         } catch (Exception e) {
             Log.e("MSSQLConnection", "İlaç listesi alma hatası: ", e);
         }
-
         return itemList;
     }
+    public static List<Item> getItemsForRoom(int roomId) {
+        List<Item> itemList = new ArrayList<>();
+        try (Connection connection = getConnection()) {
+            if (connection != null) {
+                // Oda numarasına göre ilaçları alırken item_id, item_name, item_category, item_required_quantity, quantity, expiration_date, room_id alıyoruz
+                String query = "SELECT i.item_id, i.item_name, i.item_category, i.item_required_quantity, " +
+                        "c.quantity, c.expiration_date, c.room_id " +
+                        "FROM Items i " +
+                        "JOIN Cabinets c ON i.item_id = c.item_id " +
+                        "WHERE c.room_id = ?";
+                PreparedStatement preparedStatement = connection.prepareStatement(query);
+                preparedStatement.setInt(1, roomId);
+                ResultSet resultSet = preparedStatement.executeQuery();
 
+                while (resultSet.next()) {
+                    int itemId = resultSet.getInt("item_id");
+                    String itemName = resultSet.getString("item_name");
+                    String itemCategory = resultSet.getString("item_category");
+                    int itemRequiredQuantity = resultSet.getInt("item_required_quantity");
+                    int quantity = resultSet.getInt("quantity");
+                    String expirationDate = resultSet.getString("expiration_date");
+                    int roomIdFromDb = resultSet.getInt("room_id");
 
+                    // Item nesnesi oluşturuluyor
+                    Item item = new Item(itemId, itemName, itemCategory, itemRequiredQuantity,
+                            quantity, expirationDate, roomIdFromDb);
+                    itemList.add(item);
+                }
+            }
+        } catch (Exception e) {
+            Log.e("MSSQLConnection", "Oda için ilaç listesi alma hatası: ", e);
+        }
+        return itemList;
+    }
+    public static List<Room> getRoomList() {
+        List<Room> roomList = new ArrayList<>();
+        try (Connection connection = getConnection()) {
+            if (connection != null) {
+                String query = "SELECT [room_id], [room_name] FROM [hemms_db].[dbo].[OperatingRooms]";
+                PreparedStatement preparedStatement = connection.prepareStatement(query);
+                ResultSet resultSet = preparedStatement.executeQuery();
+
+                while (resultSet.next()) {
+                    int roomId = resultSet.getInt("room_id");
+                    String roomName = resultSet.getString("room_name");
+                    roomList.add(new Room(roomId, roomName)); // Oda ID ve adı ile listeye ekle
+                }
+            }
+        } catch (Exception e) {
+            Log.e("MSSQLConnection", "Oda listesi alma hatası: ", e);
+        }
+        return roomList;
+    }
+    public static int getCurrentStock(int itemId) {
+        int currentStock = 0;
+        try (Connection connection = getConnection()) {
+            if (connection != null) {
+                String query = "SELECT quantity FROM Cabinets WHERE item_id = ?";
+                PreparedStatement preparedStatement = connection.prepareStatement(query);
+                preparedStatement.setInt(1, itemId);  // item_id'yi sorguya ekle
+                ResultSet resultSet = preparedStatement.executeQuery();
+                if (resultSet.next()) {
+                    currentStock = resultSet.getInt("quantity");  // Stok miktarını al
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return currentStock;
+    }
+    public static boolean isOldPasswordCorrect(String username, String oldPassword) {
+        String query = "SELECT COUNT(*) FROM Staff WHERE username = ? AND password = ?";
+        try (Connection connection = MSSQLConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, username);
+            statement.setString(2, oldPassword);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt(1) > 0; // Eğer sonuç 1 veya daha fazla ise, şifre doğru
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    public static boolean updatePassword(String username, String newPassword) {
+        Connection conn = getConnection();  // Veritabanı bağlantısını sağla
+        String query = "UPDATE [hemms_db].[dbo].[Staff] SET password = ? WHERE username = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, newPassword);  // Yeni şifreyi ayarla
+            stmt.setString(2, username);     // Kullanıcı adını ayarla
+            int rowsAffected = stmt.executeUpdate();
+
+            return rowsAffected > 0;  // Eğer bir satır güncellenmişse başarılıdır
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;  // Güncelleme işlemi başarısız olduysa
+    }
+    public static boolean updatePassword(String firstName, String lastName, String newPassword) {
+        boolean isSuccess = false;
+
+        try (Connection connection = getConnection()) {
+            if (connection != null) {
+                // SQL sorgusu: Kullanıcı adı ve soyadı ile şifreyi güncelle
+                String query = "UPDATE Staff SET password = ? WHERE staff_first_name = ? AND staff_last_name = ?";
+
+                PreparedStatement preparedStatement = connection.prepareStatement(query);
+
+                // Parametreleri ayarla
+                preparedStatement.setString(1, newPassword);  // Yeni şifre
+                preparedStatement.setString(2, firstName);    // Personel adı
+                preparedStatement.setString(3, lastName);     // Personel soyadı
+
+                // Sorguyu çalıştır
+                int rowsAffected = preparedStatement.executeUpdate();
+
+                // Eğer veri başarıyla güncellendiyse, işlem başarılı oldu
+                isSuccess = rowsAffected > 0;
+            }
+        } catch (Exception e) {
+            Log.e("MSSQLConnection", "Şifre güncelleme hatası: ", e);  // Hata mesajını logla
+        }
+
+        return isSuccess;  // true veya false döndür
+    }
 }

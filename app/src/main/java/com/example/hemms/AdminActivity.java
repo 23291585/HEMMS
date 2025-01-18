@@ -3,15 +3,11 @@ package com.example.hemms;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
-
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-
 public class AdminActivity extends AppCompatActivity {
 
     @Override
@@ -31,20 +27,24 @@ public class AdminActivity extends AppCompatActivity {
         startActivity(intent);
         finish();
     }
-    public void PersonelEkle(View view){
-        Intent intent = new Intent(AdminActivity.this,PersonelEkle.class);
+    public void StokGuncelle(View view){
+        Intent intent = new Intent(AdminActivity.this,SyncStore.class);
         startActivity(intent);
     }
-    public void changePassword(View view){
-        Intent intent = new Intent(AdminActivity.this,ChangePassword.class);
+    public void listItems(View view){
+        Intent intent = new Intent(AdminActivity.this,ItemsActivity.class);
         startActivity(intent);
     }
     public void listStaff(View view){
         Intent intent = new Intent(AdminActivity.this,ListStaff.class);
         startActivity(intent);
     }
-    public void listItems(View view){
-        Intent intent = new Intent(AdminActivity.this,ItemsActivity.class);
+    public void changePassword(View view){
+        Intent intent = new Intent(AdminActivity.this,ChangePassword.class);
+        startActivity(intent);
+    }
+    public void PersonelEkle(View view){
+        Intent intent = new Intent(AdminActivity.this,PersonelEkle.class);
         startActivity(intent);
     }
     public void exitApp(View view){

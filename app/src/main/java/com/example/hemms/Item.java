@@ -77,4 +77,9 @@ public class Item {
     public void setRoomId(int roomId) {
         this.roomId = roomId;
     }
+    @Override
+    public String toString() {
+        return this.itemName;  // İlaç adını döndür
+    }
+
 }
