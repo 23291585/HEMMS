@@ -17,8 +17,8 @@ public class MSSQLConnection {
     private static final String IP = "94.54.32.242"; // Statik IP adresi
     private static final String PORT = "1433";      // MSSQL varsayılan portu
     private static final String DATABASE = "hemms_db"; // Veritabanı adı
-    private static final String USERNAME = "sa";    // MSSQL kullanıcı adı
-    private static final String PASSWORD = "Gulsah1m!"; // MSSQL şifresi
+    private static final String USERNAME = "mobileuser";    // MSSQL kullanıcı adı
+    private static final String PASSWORD = "mobileuser"; // MSSQL şifresi
 
     // MSSQL bağlantısını başlatan metod
     public static Connection getConnection() {

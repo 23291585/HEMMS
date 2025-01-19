@@ -1,6 +1,8 @@
 package com.example.hemms;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -28,5 +30,10 @@ public class ItemsActivity extends AppCompatActivity {
         // Adapter'ı bağla, Context'i geçiyoruz
         itemAdapter = new ItemAdapter(ItemsActivity.this, itemList);
         recyclerView.setAdapter(itemAdapter);
+    }
+    public void Back(View view){
+        Intent intent = new Intent(ItemsActivity.this,AdminActivity.class);
+        startActivity(intent);
+        finish();
     }
 }

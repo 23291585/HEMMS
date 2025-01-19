@@ -1,6 +1,8 @@
 package com.example.hemms;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -46,5 +48,10 @@ public class ListStaff extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+    }
+    public void Back(View view){
+        Intent intent = new Intent(ListStaff.this,AdminActivity.class);
+        startActivity(intent);
+        finish();
     }
 }

@@ -1,5 +1,6 @@
 package com.example.hemms;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -83,16 +84,29 @@ public class SyncStore extends AppCompatActivity {
 
     // Oda seçimine göre ilaçları güncelleyen metot
     private void updateItemList(int selectedRoomId) {
-        List<Item> itemList = MSSQLConnection.getItemsForRoom(selectedRoomId); // Odaya özel ilaçları al
+        // Veritabanından seçilen odaya ait ilaçları al
+        List<Item> itemList = MSSQLConnection.getItemsForRoom(selectedRoomId);
+
+        if (itemList == null || itemList.isEmpty()) {
+            // Eğer ilaç kaydı yoksa spinner'ı temizle ve kullanıcıya bilgi ver
+            spinnerItem.setAdapter(null);
+            Toast.makeText(this, "Seçilen oda için kayıtlı ilaç bulunamadı.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Eğer ilaç kaydı varsa spinner'ı doldur
         ArrayAdapter<Item> itemAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, itemList);
         itemAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerItem.setAdapter(itemAdapter);
     }
 
+
+
+
     // İlaç seçildiğinde mevcut stok bilgisini gösteren metot
     private void updateCurrentStock(Item selectedItem) {
         int currentStock = MSSQLConnection.getCurrentStock(selectedItem.getItemId());
-        textViewCurrentStock.setText(String.valueOf(currentStock));
+        textViewCurrentStock.setText("Stok Miktarı : "+String.valueOf(currentStock));
     }
 
     // Stok güncelleme işlemi
@@ -127,6 +141,10 @@ public class SyncStore extends AppCompatActivity {
                 if (rowsAffected > 0) {
                     Log.d("updateStock", "Stok başarıyla güncellendi.");
                     Toast.makeText(this, "Stok başarıyla güncellendi", Toast.LENGTH_SHORT).show();
+
+                    // Mevcut stok miktarını güncelle
+                    Item selectedItem = (Item) spinnerItem.getSelectedItem();
+                    updateCurrentStock(selectedItem);
                 } else {
                     Log.d("updateStock", "Stok güncellenirken hata oluştu.");
                     Toast.makeText(this, "Stok güncellenemedi", Toast.LENGTH_SHORT).show();
@@ -136,5 +154,11 @@ public class SyncStore extends AppCompatActivity {
             e.printStackTrace();
             Toast.makeText(this, "Veritabanı hatası: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public void Back(View view){
+        Intent intent = new Intent(SyncStore.this,MainActivity.class);
+        startActivity(intent);
+        finish();
     }
 }
