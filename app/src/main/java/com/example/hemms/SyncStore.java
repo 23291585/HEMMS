@@ -2,7 +2,6 @@ package com.example.hemms;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -12,9 +11,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -27,6 +23,8 @@ public class SyncStore extends AppCompatActivity {
     private Spinner spinnerItem;
     private EditText editTextStockUpdate;
     private TextView textViewCurrentStock;
+    private Item lastSelectedItem;  // Son seçilen ilaç
+    private int lastSelectedItemPosition = -1;  // Son seçilen ilaç pozisyonu
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +50,20 @@ public class SyncStore extends AppCompatActivity {
                 Room selectedRoom = (Room) spinnerRoom.getSelectedItem(); // Oda nesnesini al
                 int selectedRoomId = selectedRoom.getRoomId();  // Oda numarasını al
                 updateItemList(selectedRoomId);  // Odaya ait ilaçları güncelle
+
+                // Oda değiştiğinde, seçili ilaç varsa onun stok bilgisini güncelle
+                if (lastSelectedItem != null && lastSelectedItem.getRoomId() == selectedRoomId) {
+                    // Seçili ilaç aynı odada ise, stok bilgisini güncelle
+                    updateCurrentStock(lastSelectedItem);
+
+                    // Son seçili ilacı tekrar seç
+                    if (lastSelectedItemPosition != -1) {
+                        spinnerItem.setSelection(lastSelectedItemPosition, true);
+                    }
+                } else {
+                    // Eğer ilaç seçili değilse veya oda farklıysa, stok bilgisini sıfırla
+                    textViewCurrentStock.setText("Stok Miktarı : 0");
+                }
             }
 
             @Override
@@ -65,6 +77,8 @@ public class SyncStore extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parentView, View view, int position, long id) {
                 Item selectedItem = (Item) spinnerItem.getSelectedItem(); // Seçilen ilacı al
+                lastSelectedItem = selectedItem; // Son seçilen ilaç kaydediliyor
+                lastSelectedItemPosition = position; // Seçili ilaç pozisyonunu kaydet
                 updateCurrentStock(selectedItem);  // Stok bilgisini güncelle
             }
 
@@ -72,13 +86,6 @@ public class SyncStore extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parentView) {
                 // Hiçbir şey seçilmediğinde yapılacak işlem
             }
-        });
-
-        // Pencere kenarlarına uygunluk için
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
         });
     }
 
@@ -98,20 +105,21 @@ public class SyncStore extends AppCompatActivity {
         ArrayAdapter<Item> itemAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, itemList);
         itemAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerItem.setAdapter(itemAdapter);
+
+        // Oda değiştiğinde, önceki seçili öğeyi tekrar seç
+        if (lastSelectedItem != null && lastSelectedItemPosition != -1) {
+            spinnerItem.setSelection(lastSelectedItemPosition, true);
+        }
     }
 
-
-
-
-    // İlaç seçildiğinde mevcut stok bilgisini gösteren metot
     private void updateCurrentStock(Item selectedItem) {
-        int currentStock = MSSQLConnection.getCurrentStock(selectedItem.getItemId());
-        textViewCurrentStock.setText("Stok Miktarı : "+String.valueOf(currentStock));
+        // Stok miktarını al
+        int currentStock = MSSQLConnection.getCurrentStock(selectedItem.getItemId(), selectedItem.getRoomId());
+        textViewCurrentStock.setText("Stok Miktarı : " + String.valueOf(currentStock));
     }
 
     // Stok güncelleme işlemi
     public void updateStock(View view) {
-        // Stok güncelleme işlemi burada yapılacak
         String stockInput = editTextStockUpdate.getText().toString();
         if (!stockInput.isEmpty()) {
             int newStock = Integer.parseInt(stockInput);  // Yeni stok miktarını al
@@ -139,14 +147,11 @@ public class SyncStore extends AppCompatActivity {
 
                 int rowsAffected = preparedStatement.executeUpdate();  // Veritabanı güncelleme işlemi
                 if (rowsAffected > 0) {
-                    Log.d("updateStock", "Stok başarıyla güncellendi.");
                     Toast.makeText(this, "Stok başarıyla güncellendi", Toast.LENGTH_SHORT).show();
 
                     // Mevcut stok miktarını güncelle
-                    Item selectedItem = (Item) spinnerItem.getSelectedItem();
-                    updateCurrentStock(selectedItem);
+                    updateCurrentStock((Item) spinnerItem.getSelectedItem());
                 } else {
-                    Log.d("updateStock", "Stok güncellenirken hata oluştu.");
                     Toast.makeText(this, "Stok güncellenemedi", Toast.LENGTH_SHORT).show();
                 }
             }
@@ -156,8 +161,9 @@ public class SyncStore extends AppCompatActivity {
         }
     }
 
-    public void Back(View view){
-        Intent intent = new Intent(SyncStore.this,MainActivity.class);
+    // Geri gitme işlemi
+    public void Back(View view) {
+        Intent intent = new Intent(SyncStore.this, MainActivity.class);
         startActivity(intent);
         finish();
     }

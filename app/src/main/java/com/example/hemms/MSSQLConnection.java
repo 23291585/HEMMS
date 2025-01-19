@@ -173,16 +173,17 @@ public class MSSQLConnection {
         List<Item> itemList = new ArrayList<>();
         try (Connection connection = getConnection()) {
             if (connection != null) {
-                // Oda numarasına göre ilaçları alırken item_id, item_name, item_category, item_required_quantity, quantity, expiration_date, room_id alıyoruz
-                String query = "SELECT i.item_id, i.item_name, i.item_category, i.item_required_quantity, " +
-                        "c.quantity, c.expiration_date, c.room_id " +
-                        "FROM Items i " +
-                        "JOIN Cabinets c ON i.item_id = c.item_id " +
+                // SQL sorgusu, belirtilen oda numarasına göre ürünleri çekiyor
+                String query = "SELECT c.room_id, c.item_id, c.quantity, c.expiration_date, " +
+                        "i.item_name, i.item_category, i.item_required_quantity " +
+                        "FROM Cabinets c " +
+                        "JOIN Items i ON c.item_id = i.item_id " +
                         "WHERE c.room_id = ?";
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
-                preparedStatement.setInt(1, roomId);
+                preparedStatement.setInt(1, roomId); // Parametre olarak oda numarasını ekliyoruz.
                 ResultSet resultSet = preparedStatement.executeQuery();
 
+                // Veritabanından alınan her satır için Item nesnesi oluşturuluyor
                 while (resultSet.next()) {
                     int itemId = resultSet.getInt("item_id");
                     String itemName = resultSet.getString("item_name");
@@ -190,15 +191,14 @@ public class MSSQLConnection {
                     int itemRequiredQuantity = resultSet.getInt("item_required_quantity");
                     int quantity = resultSet.getInt("quantity");
                     String expirationDate = resultSet.getString("expiration_date");
-                    int roomIdFromDb = resultSet.getInt("room_id");
 
                     // Item nesnesi oluşturuluyor
                     Item item = new Item(itemId, itemName, itemCategory, itemRequiredQuantity,
-                            quantity, expirationDate, roomIdFromDb);
+                            quantity, expirationDate, roomId); // roomId parametre olarak veriliyor
                     itemList.add(item);
                 }
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             Log.e("MSSQLConnection", "Oda için ilaç listesi alma hatası: ", e);
         }
         return itemList;
@@ -207,7 +207,7 @@ public class MSSQLConnection {
         List<Room> roomList = new ArrayList<>();
         try (Connection connection = getConnection()) {
             if (connection != null) {
-                String query = "SELECT [room_id], [room_name] FROM [hemms_db].[dbo].[OperatingRooms]";
+                String query = "SELECT room_id, room_name FROM OperatingRooms";
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 ResultSet resultSet = preparedStatement.executeQuery();
 
@@ -222,13 +222,14 @@ public class MSSQLConnection {
         }
         return roomList;
     }
-    public static int getCurrentStock(int itemId) {
+    public static int getCurrentStock(int itemId, int roomId) {
         int currentStock = 0;
         try (Connection connection = getConnection()) {
             if (connection != null) {
-                String query = "SELECT quantity FROM Cabinets WHERE item_id = ?";
+                String query = "SELECT quantity FROM Cabinets WHERE item_id = ? AND room_id = ?";
                 PreparedStatement preparedStatement = connection.prepareStatement(query);
                 preparedStatement.setInt(1, itemId);  // item_id'yi sorguya ekle
+                preparedStatement.setInt(2, roomId);  // room_id'yi sorguya ekle
                 ResultSet resultSet = preparedStatement.executeQuery();
                 if (resultSet.next()) {
                     currentStock = resultSet.getInt("quantity");  // Stok miktarını al
